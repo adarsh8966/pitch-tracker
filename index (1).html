@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PitchTracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #12121a;
+    --border:  #1e1e2e;
+    --accent:  #e8ff47;
+    --blue:    #47c8ff;
+    --red:     #ff4757;
+    --orange:  #ffa502;
+    --green:   #2ed573;
+    --text:    #e8e8f0;
+    --muted:   #5a5a7a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ─────────────────────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .status-pill.connected {
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+
+  .status-pill.connected .status-dot {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.4; }
+  }
+
+  /* ── Main grid ───────────────────────────────────────────── */
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 16px;
+    padding: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 600px) {
+    main { grid-template-columns: 1fr; }
+  }
+
+  /* ── Cards ───────────────────────────────────────────────── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+
+  .card-label {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* ── Velocity card ───────────────────────────────────────── */
+  .velocity-card {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .velocity-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .velocity-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 96px;
+    line-height: 1;
+    color: var(--accent);
+    transition: color 0.3s;
+    text-shadow: 0 0 40px rgba(232,255,71,0.2);
+  }
+
+  .velocity-unit {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--muted);
+  }
+
+  .velocity-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .stat-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    width: 50px;
+  }
+
+  .stat-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    color: var(--text);
+  }
+
+  .stat-unit {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── Pitch count card ────────────────────────────────────── */
+  .pitch-count {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    line-height: 1;
+    color: var(--blue);
+  }
+
+  .pitch-limit {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  /* ── Workload card ───────────────────────────────────────── */
+  .workload-card { display: flex; flex-direction: column; gap: 12px; }
+
+  .workload-number {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 52px;
+    line-height: 1;
+    transition: color 0.4s;
+  }
+
+  .workload-bar-track {
+    background: var(--border);
+    border-radius: 999px;
+    height: 10px;
+    overflow: hidden;
+  }
+
+  .workload-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.6s ease, background 0.4s;
+    width: 0%;
+  }
+
+  .workload-status {
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+
+  /* ── Timer card ──────────────────────────────────────────── */
+  .session-time {
+    font-family: 'DM Mono', monospace;
+    font-size: 42px;
+    color: var(--text);
+  }
+
+  .session-meta {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ── Chart card ──────────────────────────────────────────── */
+  .chart-card {
+    grid-column: 1 / -1;
+    padding-bottom: 16px;
+  }
+
+  .chart-wrapper {
+    position: relative;
+    height: 160px;
+    margin-top: 8px;
+  }
+
+  /* ── Settings panel ──────────────────────────────────────── */
+  .settings-card { grid-column: 1 / -1; }
+
+  .settings-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .settings-field label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .settings-field input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .settings-field input:focus { border-color: var(--accent); }
+
+  .btn {
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    align-self: flex-end;
+  }
+
+  .btn:hover { opacity: 0.85; }
+
+  /* ── Admin panel ─────────────────────────────────────────── */
+  #admin-panel {
+    display: none;
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--surface);
+    border: 1px solid var(--orange);
+    border-radius: 14px;
+    padding: 28px;
+    z-index: 100;
+    width: 320px;
+    box-shadow: 0 0 40px rgba(255,165,2,0.15);
+  }
+
+  #admin-panel h2 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    color: var(--orange);
+    margin-bottom: 16px;
+    letter-spacing: 1px;
+  }
+
+  #admin-panel label {
+    display: block;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+    margin-top: 14px;
+  }
+
+  #admin-panel input {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 14px;
+    outline: none;
+  }
+
+  .admin-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+
+  .btn-orange {
+    background: var(--orange);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    flex: 1;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 18px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 99;
+  }
+
+  /* ── Demo badge ──────────────────────────────────────────── */
+  #demo-badge {
+    display: none;
+    position: fixed;
+    bottom: 18px; right: 18px;
+    background: var(--orange);
+    color: #0a0a0f;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: 999px;
+    letter-spacing: 0.5px;
+    z-index: 50;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">⚾ PitchTracker</div>
+  <div class="status-pill" id="status-pill">
+    <div class="status-dot"></div>
+    <span id="status-text">Connecting...</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Velocity -->
+  <div class="card velocity-card">
+    <div>
+      <div class="card-label">Current Velocity</div>
+      <div class="velocity-main">
+        <div class="velocity-number" id="vel-current">--</div>
+        <div class="velocity-unit">MPH</div>
+      </div>
+    </div>
+    <div class="velocity-stats">
+      <div class="stat-row">
+        <span class="stat-label">AVG</span>
+        <span class="stat-value" id="vel-avg">--</span>
+        <span class="stat-unit">mph</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">PEAK</span>
+        <span class="stat-value" id="vel-peak">--</span>
+        <span class="stat-unit">mph</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pitch Count -->
+  <div class="card">
+    <div class="card-label">Pitch Count</div>
+    <div class="pitch-count" id="pitch-count">0</div>
+    <div class="pitch-limit" id="pitch-limit">Limit: 105 pitches (age 18)</div>
+  </div>
+
+  <!-- Session Timer -->
+  <div class="card">
+    <div class="card-label">Session Time</div>
+    <div class="session-time" id="session-time">00:00:00</div>
+    <div class="session-meta" id="session-meta">Session not started</div>
+  </div>
+
+  <!-- Workload -->
+  <div class="card workload-card" style="grid-column: 1 / -1;">
+    <div class="card-label">Arm Workload / Stress Index</div>
+    <div class="workload-number" id="workload-num" style="color: var(--green);">0</div>
+    <div class="workload-bar-track" style="margin: 8px 0;">
+      <div class="workload-bar-fill" id="workload-bar" style="background: var(--green);"></div>
+    </div>
+    <div class="workload-status" id="workload-status" style="color: var(--green);">● HEALTHY</div>
+  </div>
+
+  <!-- Chart -->
+  <div class="card chart-card">
+    <div class="card-label">Velocity History</div>
+    <div class="chart-wrapper">
+      <canvas id="vel-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="card settings-card">
+    <div class="card-label">Settings</div>
+    <div class="settings-grid">
+      <div class="settings-field">
+        <label>Forearm Length (m)</label>
+        <input type="number" id="cfg-forearm" value="0.48" step="0.01" min="0.3" max="0.7">
+      </div>
+      <div class="settings-field">
+        <label>Calibration Factor</label>
+        <input type="number" id="cfg-calib" value="1.0" step="0.05" min="0.5" max="2.0">
+      </div>
+      <div class="settings-field">
+        <label>Pitcher Age</label>
+        <input type="number" id="cfg-age" value="18" step="1" min="8" max="40">
+      </div>
+      <div class="settings-field" style="display:flex;align-items:flex-end;">
+        <button class="btn" onclick="sendConfig()">Apply</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Admin overlay -->
+<div class="overlay" id="overlay" onclick="closeAdmin()"></div>
+<div id="admin-panel">
+  <h2>⚠ Admin / Demo Mode</h2>
+  <label>Demo Velocity (mph) — enter 0 to clear</label>
+  <input type="number" id="admin-mph" value="85" min="0" max="120">
+  <div class="admin-btns">
+    <button class="btn-orange" onclick="sendDemo()">Lock Velocity</button>
+    <button class="btn-ghost" onclick="closeAdmin()">Cancel</button>
+  </div>
+</div>
+
+<div id="demo-badge">DEMO MODE</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────────────
+  let ws = null;
+  let reconnectTimer = null;
+  let sessionStart = null;
+  let timerInterval = null;
+  let velocities = [];
+  let peakVel = 0;
+  let demoActive = false;
+
+  // ── WebSocket ──────────────────────────────────────────────────────────────
+  const WS_URL = 'ws://192.168.4.1:81';
+
+  function connect() {
+    if (ws) { ws.close(); ws = null; }
+    setStatus(false, 'Connecting...');
+    try {
+      ws = new WebSocket(WS_URL);
+      ws.onopen    = onOpen;
+      ws.onmessage = onMessage;
+      ws.onclose   = onClose;
+      ws.onerror   = () => {};
+    } catch (e) { scheduleReconnect(); }
+  }
+
+  function onOpen() {
+    setStatus(true, 'Connected');
+    if (!sessionStart) {
+      sessionStart = Date.now();
+      timerInterval = setInterval(updateTimer, 1000);
+    }
+  }
+
+  function onClose() {
+    setStatus(false, 'Disconnected');
+    scheduleReconnect();
+  }
+
+  function scheduleReconnect() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(connect, 3000);
+  }
+
+  function send(msg) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(msg);
+  }
+
+  // ── Message handler ────────────────────────────────────────────────────────
+  function onMessage(evt) {
+    const msg = evt.data.trim();
+
+    if (msg.startsWith('PITCH,')) {
+      const parts = msg.split(',');
+      const mph   = parseFloat(parts[1]);
+      const count = parseInt(parts[2]);
+      handlePitch(mph, count);
+    }
+
+    if (msg.startsWith('WORKLOAD,')) {
+      const val = parseFloat(msg.split(',')[1]);
+      updateWorkload(val);
+    }
+  }
+
+  function handlePitch(mph, count) {
+    // Velocity display
+    document.getElementById('vel-current').textContent = mph.toFixed(1);
+    velocities.push(mph);
+
+    const avg  = velocities.reduce((a,b) => a+b, 0) / velocities.length;
+    if (mph > peakVel) peakVel = mph;
+
+    document.getElementById('vel-avg').textContent  = avg.toFixed(1);
+    document.getElementById('vel-peak').textContent = peakVel.toFixed(1);
+
+    // Pitch count
+    document.getElementById('pitch-count').textContent = count;
+
+    // Chart
+    addChartPoint(mph, count);
+  }
+
+  // ── Workload ───────────────────────────────────────────────────────────────
+  function updateWorkload(val) {
+    const num  = document.getElementById('workload-num');
+    const bar  = document.getElementById('workload-bar');
+    const stat = document.getElementById('workload-status');
+
+    num.textContent = Math.round(val);
+    bar.style.width = Math.min(val, 100) + '%';
+
+    let color, label;
+    if (val < 40)      { color = 'var(--green)';  label = '● HEALTHY'; }
+    else if (val < 75) { color = 'var(--orange)'; label = '▲ CAUTION'; }
+    else               { color = 'var(--red)';    label = '■ HIGH RISK'; }
+
+    num.style.color      = color;
+    bar.style.background = color;
+    stat.style.color     = color;
+    stat.textContent     = label;
+  }
+
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  function updateTimer() {
+    if (!sessionStart) return;
+    const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+    const h = String(Math.floor(elapsed / 3600)).padStart(2,'0');
+    const m = String(Math.floor((elapsed % 3600) / 60)).padStart(2,'0');
+    const s = String(elapsed % 60).padStart(2,'0');
+    document.getElementById('session-time').textContent = `${h}:${m}:${s}`;
+    document.getElementById('session-meta').textContent = 'Session active';
+  }
+
+  // ── Status pill ────────────────────────────────────────────────────────────
+  function setStatus(connected, label) {
+    const pill = document.getElementById('status-pill');
+    const text = document.getElementById('status-text');
+    pill.className = 'status-pill' + (connected ? ' connected' : '');
+    text.textContent = label;
+  }
+
+  // ── Chart ──────────────────────────────────────────────────────────────────
+  const ctx = document.getElementById('vel-chart').getContext('2d');
+  const velChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#e8ff47',
+        backgroundColor: 'rgba(232,255,71,0.08)',
+        borderWidth: 2,
+        pointRadius: 4,
+        pointBackgroundColor: '#e8ff47',
+        tension: 0.4,
+        fill: true,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#5a5a7a', font: { family: 'DM Mono' } }, grid: { color: '#1e1e2e' } },
+        y: {
+          ticks: { color: '#5a5a7a', font: { family: 'DM Mono' }, callback: v => v + ' mph' },
+          grid: { color: '#1e1e2e' },
+          min: 0,
+        }
+      }
+    }
+  });
+
+  function addChartPoint(mph, count) {
+    velChart.data.labels.push('#' + count);
+    velChart.data.datasets[0].data.push(mph);
+    if (velChart.data.labels.length > 30) {
+      velChart.data.labels.shift();
+      velChart.data.datasets[0].data.shift();
+    }
+    velChart.update();
+  }
+
+  // ── Settings ───────────────────────────────────────────────────────────────
+  function sendConfig() {
+    const forearm = document.getElementById('cfg-forearm').value;
+    const calib   = document.getElementById('cfg-calib').value;
+    const age     = document.getElementById('cfg-age').value;
+    send(`CONFIG,${forearm},${calib},${age}`);
+
+    const maxMap = { 10:75, 12:85, 14:95, 16:95, 18:105, 40:120 };
+    let max = 120;
+    for (const [k,v] of Object.entries(maxMap)) { if (age <= k) { max = v; break; } }
+    document.getElementById('pitch-limit').textContent = `Limit: ${max} pitches (age ${age})`;
+  }
+
+  // ── Admin / Demo mode ──────────────────────────────────────────────────────
+  function openAdmin() {
+    document.getElementById('admin-panel').style.display = 'block';
+    document.getElementById('overlay').style.display     = 'block';
+  }
+
+  function closeAdmin() {
+    document.getElementById('admin-panel').style.display = 'none';
+    document.getElementById('overlay').style.display     = 'none';
+  }
+
+  function sendDemo() {
+    const mph = parseFloat(document.getElementById('admin-mph').value);
+    if (mph === 0) {
+      send('DEMO,0');
+      demoActive = false;
+      document.getElementById('demo-badge').style.display = 'none';
+    } else {
+      send(`DEMO,${mph}`);
+      demoActive = true;
+      document.getElementById('demo-badge').style.display = 'block';
+    }
+    closeAdmin();
+  }
+
+  // Hidden admin trigger: navigate to #admin
+  window.addEventListener('hashchange', () => {
+    if (location.hash === '#admin') openAdmin();
+  });
+  if (location.hash === '#admin') openAdmin();
+
+  // ── Boot ───────────────────────────────────────────────────────────────────
+  connect();
+</script>
+</body>
+</html>
